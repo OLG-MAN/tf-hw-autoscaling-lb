@@ -1,0 +1,5 @@
+*.json
+*.tfstate.lock.info
+*.lock.hcl
+*.tfstate
+*.tfstate.backup
