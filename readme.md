@@ -6,7 +6,7 @@
 2. Starting container (cloud-sdk+tf) and attach working directory to container.
 
 ```
-docker run -it -v ${PWD}:/work -w /work iMAGE_NAME
+docker run -it -v ${PWD}:/work -w /work <IMAGE_NAME>
 ```
 
 3. Autheticate with GCP project, choose project for working. 
