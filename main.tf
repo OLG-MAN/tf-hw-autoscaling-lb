@@ -2,7 +2,7 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "3.5.0"
+      version = "3.20.0"
     }
   }
 }
@@ -10,6 +10,11 @@ terraform {
 provider "google" {
   credentials = file("project-hw-101-1c220d18bdd8.json")
   project     = "project-hw-101"
+}
+
+data "google_compute_image" "debian" {
+  family  = "debian-10"
+  project = "debian-cloud"
 }
 
 resource "google_compute_network" "vpc_network" {
@@ -52,20 +57,11 @@ resource "google_compute_instance_template" "instance_template" {
   tags         = ["web-server"]
 
   disk {
-    source_image      = "debian-cloud/debian-9"
-    auto_delete       = true
-    boot              = true
+    source_image = data.google_compute_image.debian.self_link
   }
 
   network_interface {
-    network = "hw-terraform-network"
-    access_config {
-
-    } 
-  }
-
-  lifecycle {
-    create_before_destroy = true
+    network = google_compute_network.vpc_network.name
   }
 
   metadata = {
@@ -73,10 +69,73 @@ resource "google_compute_instance_template" "instance_template" {
   }
 }
 
-resource "google_compute_instance_group_manager" "instance_group_manager" {
-  name               = "instance-group-manager"
-  instance_template  = google_compute_instance_template.instance_template.id
-  base_instance_name = "instance-group-manager"
-  zone               = "europe-central2-c"
-  target_size        = "3"
+resource "google_compute_autoscaler" "autosc" {
+  name   = "my-autoscaler"
+  zone   = "europe-central2-c"
+  target = google_compute_instance_group_manager.instance_group_manager.self_link
+
+  autoscaling_policy {
+    max_replicas    = 4
+    min_replicas    = 2
+    cooldown_period = 60
+
+    cpu_utilization {
+      target = 0.5
+    }
+  }
 }
+
+resource "google_compute_instance_group_manager" "instance_group_manager" {
+  name               = "igm"
+  zone               = "europe-central2-c"
+
+  version {
+    instance_template  = google_compute_instance_template.instance_template.id
+    name               = "primary"
+  }
+
+  target_pools       = [google_compute_target_pool.tpool.self_link]
+  base_instance_name = "terraform"
+}
+
+resource "google_compute_target_pool" "tpool" {
+  name = "hw-target-pool"
+  region = "europe-central2"
+}
+
+module "lb" {
+  source  = "GoogleCloudPlatform/lb/google"
+  version = "2.2.0"
+  region       = "europe-central2"
+  name         = "load-balancer"
+  service_port = 80
+  target_tags  = ["hw-target-pool"]
+  network      = google_compute_network.vpc_network.name
+}
+
+# instance for testing
+# resource "google_compute_instance" "default" {
+#   name         = "test"
+#   machine_type = "e2-medium"
+#   zone         = "us-central1-a"
+
+#   tags = ["web-server"]
+
+#   boot_disk {
+#     initialize_params {
+#       image = "debian-cloud/debian-9"
+#     }
+#   }
+
+#   network_interface {
+#     network = google_compute_network.vpc_network.name
+
+#     access_config {
+#       // Ephemeral IP
+#     }
+#   }
+
+#   metadata = {
+#     startup-script-url = "gs://hw-bucket-8989/startup.sh"
+#   }
+# }

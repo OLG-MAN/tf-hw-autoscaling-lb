@@ -6,7 +6,7 @@
 2. Starting container (cloud-sdk+tf) and attach working directory to container.
 
 ```
-docker run -it -v ${PWD}:/work -w /work <IMAGE_NAME>
+docker run -it --rm -v ${PWD}:/work -w /work <IMAGE_NAME>
 ```
 
 3. Autheticate with GCP project, choose project for working. 
@@ -19,4 +19,4 @@ gcloud config set project PROJECT_ID
 
 4. Creating service account for tf, create .json key and use it in .tf files.
 
-5. Creating infrastructure. 
+5. Creating infrastructure.
