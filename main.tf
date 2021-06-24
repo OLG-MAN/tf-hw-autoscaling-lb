@@ -2,7 +2,7 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "3.20.0"
+      version = "3.73.0"
     }
   }
 }
@@ -50,11 +50,11 @@ resource "google_storage_bucket_object" "startup-script" {
 }
 
 resource "google_compute_instance_template" "instance_template" {
-  name_prefix  = "instance-template-"
-  machine_type = "e2-medium"
-  region       = "europe-central2"
+  name           = "my-instance-template"
+  machine_type   = "e2-medium"
+  region         = "europe-central2"
   
-  tags         = ["web-server"]
+  tags           = ["web-server"]
 
   disk {
     source_image = data.google_compute_image.debian.self_link
@@ -62,6 +62,10 @@ resource "google_compute_instance_template" "instance_template" {
 
   network_interface {
     network = google_compute_network.vpc_network.name
+
+    access_config {
+
+    }
   }
 
   metadata = {
@@ -87,15 +91,14 @@ resource "google_compute_autoscaler" "autosc" {
 
 resource "google_compute_instance_group_manager" "instance_group_manager" {
   name               = "igm"
+  base_instance_name = "instance-template"
   zone               = "europe-central2-c"
 
   version {
     instance_template  = google_compute_instance_template.instance_template.id
-    name               = "primary"
   }
 
   target_pools       = [google_compute_target_pool.tpool.self_link]
-  base_instance_name = "terraform"
 }
 
 resource "google_compute_target_pool" "tpool" {
@@ -107,13 +110,33 @@ module "lb" {
   source  = "GoogleCloudPlatform/lb/google"
   version = "2.2.0"
   region       = "europe-central2"
-  name         = "load-balancer"
+  name         = "load-balancer2"
   service_port = 80
-  target_tags  = ["hw-target-pool"]
+  target_tags  = ["webserver"]
   network      = google_compute_network.vpc_network.name
 }
 
-# instance for testing
+
+
+### module for testing
+# module "gce-lb-http" {
+#   source  = "GoogleCloudPlatform/lb-http/google"
+#   name         = "lb-webserver"
+#   project      = "project-hw-101"
+#   target_tags  = ["web-server"]
+#   backends     = {
+#     "0" = [
+#       { group = "${google_compute_instance_group_manager.instance_group_manager.instance_group}"}
+#     ],
+#   }
+#   backend_params = [
+#     "/,http.80,10"
+#   ]
+# }
+
+
+
+### instance for testing
 # resource "google_compute_instance" "default" {
 #   name         = "test"
 #   machine_type = "e2-medium"
